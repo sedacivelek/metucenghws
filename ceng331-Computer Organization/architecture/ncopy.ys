@@ -1,0 +1,203 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# Seda Civelek 2237147 
+#
+# I added iaddq instruction in set_cc in pipe_full.hcl, so I dont have to use andq's.
+# I used 2 different registers for i'th and i+1'th elements to prevent data hazard.
+# In main loop, I copied i'th and i+1'th elements and write them sequentially to use
+# forwarding feature and prevent data dependency. 
+# I used 8-way loop unrolling 
+# You can see detailed informations in below comments.
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	xorq %rax,%rax		# count = 0;
+	iaddq -7, %rdx		#substract 7 to check if rdx>0
+	jg  Loop		#if greater than 8 elements, go to loop
+	iaddq 7, %rdx		#else, skip loop and add 7 to reach exact number of rdx
+	mrmovq (%rdi),%r10	#in order to prevent data dependency,for reading i+1'th element
+				#then writing i'th element in Remain part
+	jg Remain	
+	ret			
+	
+	
+Loop:	mrmovq (%rdi), %r10	# read i'th element from src
+	mrmovq 8(%rdi), %r9	# read i+1'th element from src
+
+	rmmovq %r10, (%rsi)	# store i'th element to dst
+	
+	
+	andq %r10, %r10		# val <= 0?
+	jle First		# if so go to First
+	iaddq 1, %rax		# count++
+
+First:
+	rmmovq %r9, 8(%rsi)	#store i+1'th element to dst+1
+	andq %r9,%r9		#val<=0?
+	jle Second		#if so go to Second
+	iaddq 1, %rax		#count++
+
+Second:
+	mrmovq 16(%rdi), %r10  #read i+2'th element
+	mrmovq 24(%rdi), %r9   #read i+3'th element
+
+	rmmovq %r10, 16(%rsi)  #store i+2'th element
+	
+
+	andq %r10, %r10		#val<=0?
+	jle Third		#if so go to Third
+	iaddq 1, %rax		#count++
+
+Third:
+	rmmovq %r9, 24(%rsi)	#store i+3'th element
+	andq %r9,%r9		#val<=0?
+	jle Fourth		#if so go to Fourth
+	iaddq 1, %rax		#count++
+
+Fourth:
+	mrmovq 32(%rdi), %r10 	#read i+4'th element
+	mrmovq 40(%rdi), %r9	#read i+5'th element 
+
+	rmmovq %r10, 32(%rsi)	#store i+4'th element
+	
+
+	andq %r10, %r10		#val<=0?
+	jle Fifth		#if so go to Fifth
+	iaddq 1, %rax		#count++
+
+Fifth:
+	rmmovq %r9, 40(%rsi)	#store i+5'th element
+	andq %r9,%r9		#val<=0?
+	jle Sixth		#if so go to Sixth
+	iaddq 1, %rax		#count++
+
+Sixth:
+	mrmovq 48(%rdi), %r10	#read i+6'th element
+	mrmovq 56(%rdi), %r9	#read i+7'th element
+
+	rmmovq %r10, 48(%rsi)	#store i+6'th element
+	
+
+	andq %r10, %r10		#val<=0?
+	jle Seventh		#if so go to Seventh
+	iaddq 1, %rax		#count++
+
+Seventh:
+	rmmovq %r9, 56(%rsi)	#store i+7'th element
+	andq %r9,%r9		#val<=0?
+	jle Adding		#if so go to Adding
+	iaddq 1, %rax		#count++
+
+Adding:
+	iaddq $64,%rdi		#increment src pointer by 8 since I did 8-way unrolling
+	iaddq $64,%rsi		#increment dst pointer by 8 
+	iaddq -8,%rdx		#len-=8
+
+Rest:
+	jg Loop			#if len>0 , continue to unrolled loop
+	iaddq 7, %rdx	
+	mrmovq (%rdi),%r10	#in order to prevent data dependency,for reading i+1'th element
+				#then writing i'th element in Remain part
+	je Done
+## In remain part, read i+1'th element and write i'th element each time, also check len>0
+Remain:
+	mrmovq 8(%rdi),%r9	#read remaining 2'th element
+	rmmovq %r10, (%rsi)	#store remaining 1'th element
+
+	andq %r10, %r10		#val<=0?
+	jle Remain1		#if so go to Remain1
+	iaddq 1,%rax		#count++
+
+Remain1:
+	iaddq -1,%rdx		#len-- and check if len<=0
+	jle Done		#if so go to done
+
+	mrmovq 16(%rdi),%r10	#else, read remaining 3'th element
+	rmmovq %r9,8(%rsi)	#store remaining 2'th element
+
+	andq %r9,%r9		#val<=0?
+	jle Remain2		#if so go to Remain2
+	iaddq 1, %rax		#else, count++
+
+Remain2:
+	iaddq -1,%rdx		#len-- and check if len<=0
+	jle Done		#if so go to done
+
+	mrmovq 24(%rdi),%r9	#else read remaining 4'th element
+	rmmovq %r10,16(%rsi)	#store remaining 3'th element
+	
+	andq %r10,%r10		#val<=0?
+	jle Remain3		#if so go to remain3
+	iaddq 1,%rax		#else count++
+
+Remain3:
+	iaddq -1,%rdx		#len-- and check if len<=0
+	jle Done		#if so go to done
+
+	mrmovq 32(%rdi),%r10	#read remaining 5'th element
+	rmmovq %r9,24(%rsi)	#store remaining 4'th element
+
+	andq %r9,%r9		#val<=0?		
+	jle Remain4		#if so go to remanin4
+	iaddq 1,%rax		#else count++
+
+Remain4:
+	iaddq -1,%rdx		#len-- and check if len<=0
+	jle Done		#if so go to done
+
+	mrmovq 40(%rdi),%r9	#read remaining 6'th element
+	rmmovq %r10,32(%rsi)	#store remaining 5'th element
+
+	andq %r10,%r10		#val<=0?
+	jle Remain5		#if so go to remain5
+	iaddq 1,%rax		#else count++
+
+Remain5:
+	iaddq -1,%rdx		#len-- and check if len<=0
+	jle Done		#if so go to done
+
+	mrmovq 48(%rdi),%r10	#read remaining 7'th element
+	rmmovq %r9,40(%rsi)	#store remaining 6'th element
+
+	andq %r9,%r9		#val<=0?
+	jle Remain6		#if so go to Remain6
+	iaddq 1,%rax		#else count++
+
+Remain6:
+	iaddq -1,%rdx		#len-- and check if len<=0
+	jle Done		#if so go to done
+
+	mrmovq 56(%rdi),%r9	#read remaining 8'th element
+	rmmovq %r10,48(%rsi)	#store remaining 7'th element
+
+	andq %r10,%r10		#val<=0?
+	jle Remain7		#if so go to remain7
+	iaddq 1,%rax		#else,count++
+
+Remain7:
+	iaddq -1,%rdx		#len-- and check if len<=0
+	jle Done		#if so go to done
+
+	rmmovq %r9, 56(%rsi)	#store remaining 8'th element
+	andq %r9, %r9		#val<=0?
+
+	jle Done		#if so go to done
+	iaddq 1,%rax		#else count++
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */

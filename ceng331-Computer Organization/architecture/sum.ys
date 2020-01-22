@@ -1,0 +1,45 @@
+#2237147
+#Seda Civelek
+
+.pos 0
+init:
+	irmovq stack, %rsp
+	call main
+	halt
+#sample linkedlist
+.align 8
+
+ele1:
+	.quad 0x00a
+	.quad ele2
+ele2:
+	.quad 0x0b0
+	.quad ele3
+ele3:
+	.quad 0xc00
+	.quad 0
+#main 
+main:
+	irmovq ele1, %rdi #pass argument first element (list_ptr ls) 
+	call sum_list #call sumlist
+	halt
+
+sum_list:
+	xorq %rax, %rax #val=0
+	jmp test
+
+loop:
+        mrmovq (%rdi),%rcx #temp=ls->data
+        addq %rcx,%rax  #val=val+data
+        mrmovq $0x8(%rdi), %rdi #ls=ls->next
+
+
+test:
+	andq %rdi,%rdi #while(ls)
+	jne loop
+	ret 
+
+
+.pos 0x200
+
+stack:

@@ -1,0 +1,42 @@
+#2237147
+#Seda Civelek
+
+.pos 0
+
+init : 
+	irmovq stack, %rsp
+	call main
+	halt
+
+.align 8
+
+ele1:
+        .quad 0x00a
+        .quad ele2
+ele2:
+        .quad 0x0b0
+        .quad ele3
+ele3:
+        .quad 0xc00
+        .quad 0
+main:
+	irmovq ele1,%rdi #pass argument first element
+	call rsum_list	#call function
+	ret
+rsum_list:
+	pushq %rcx 
+	irmovq $0x0,%rax #return 0
+	andq %rdi ,%rdi #if(!ls)
+	je end
+	mrmovq (%rdi),%rcx #else val=ls->data
+	
+	mrmovq $0x8(%rdi), %rdi 
+	call rsum_list #rsum_list(ls->next)
+	addq %rcx,%rax #return val+rsum_list(ls->next)
+end:
+	popq %rcx
+	ret
+
+.pos 0x200
+
+stack:
