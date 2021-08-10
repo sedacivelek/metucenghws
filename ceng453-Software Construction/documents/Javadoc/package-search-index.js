@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"com.ceng453.game"},{"l":"com.ceng453.game.api"},{"l":"com.ceng453.game.config"},{"l":"com.ceng453.game.dto"},{"l":"com.ceng453.game.model"},{"l":"com.ceng453.game.repository"},{"l":"com.ceng453.game.service"},{"l":"com.ceng453.game.util"}];updateSearchResults();
